@@ -1,0 +1,17 @@
+# sharp-sign starts a comment
+# ip:port are not indented
+# any other non-indented lines are default directives
+#   settings are indented
+# 
+# directives: vip, block_user, block_host, vip_on_loopback
+
+#127.0.0.1:3308 127.0.0.1:3309
+#  vip 127.0.0.3
+#  block_user ^abc$
+#  block_host ^localhost$
+
+10.0.21.7:3308 10.0.21.17:3308
+   vip 10.0.21.97   
+   block_user ^percona$|^proxysqlmon$
+   block_host ^10\.0\.21\.%$
+   proxysql admin2:admin2@10.0.21.5:6032:w1:r2,admin2:admin2@10.0.21.7:6032:w1:r2

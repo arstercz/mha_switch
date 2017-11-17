@@ -1,0 +1,8 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+use MIME::Base64;
+
+my $pstring = decode_base64('bW9uaXRvcg==');
+
+print "password=$pstring\n";

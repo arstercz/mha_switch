@@ -1,0 +1,11 @@
+[server default]
+user=root
+init_conf_load_script=/usr/bin/init_conf_loads
+ssh_user=mha
+ssh_options="-i /home/mha/.ssh/id_rsa"
+remote_workdir=/web/masterhalog
+ping_interval=3
+master_ip_failover_script=/usr/bin/master_ip_failover
+master_ip_online_change_script=/usr/bin/master_ip_online_change
+report_script=/usr/bin/send_report
+multi_tier_slave=1

@@ -1,0 +1,479 @@
+#!/usr/bin/env perl
+
+#  Copyright (C) 2011 DeNA Co.,Ltd.
+#
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 2 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#   along with this program; if not, write to the Free Software
+#  Foundation, Inc.,
+#  51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+
+## refer to mha4mysql-manager/samples/scripts/master_ip_online_change
+
+use strict;
+use warnings FATAL => 'all';
+
+use Getopt::Long;
+use Time::HiRes qw( sleep gettimeofday tv_interval );
+use Data::Dumper;
+use Carp;
+
+use constant SCRIPT_CONF   => '/etc/masterha/masterha-script.cnf';
+use constant SCRIPT_MODULE => '/etc/masterha/masterha-script.pm';
+require(SCRIPT_MODULE) or die 'Fail to load ' . SCRIPT_MODULE;
+my $config = Extra::MHA::Config->new(SCRIPT_CONF);
+die "Need meaningful configuration in " . SCRIPT_CONF if $config->is_empty;
+
+my $_tstart;
+my $_running_interval = 0.1;
+my (
+  $command,              $orig_master_host,     $orig_master_ip,
+  $orig_master_port,     $orig_master_user,     $orig_master_password,
+  $orig_master_ssh_user, $orig_master_ssh_host, $orig_master_ssh_ip,
+  $orig_master_ssh_port, $new_master_host,      $new_master_ip, 
+  $new_master_port,      $new_master_user,      $new_master_password, 
+  $new_master_ssh_user,  $new_master_ssh_host,  $new_master_ssh_ip, 
+  $new_master_ssh_port,  $ssh_options,          $orig_master_is_new_slave,
+);
+GetOptions(
+  'command=s'                => \$command,
+  'orig_master_host=s'       => \$orig_master_host,
+  'orig_master_ip=s'         => \$orig_master_ip,
+  'orig_master_port=i'       => \$orig_master_port,
+  'orig_master_user=s'       => \$orig_master_user,
+  'orig_master_password=s'   => \$orig_master_password,
+  'orig_master_ssh_host=s'   => \$orig_master_ssh_host,
+  'orig_master_ssh_ip=s'     => \$orig_master_ssh_ip,
+  'orig_master_ssh_port=i'   => \$orig_master_ssh_port,
+  'orig_master_ssh_user=s'   => \$orig_master_ssh_user,
+  'orig_master_is_new_slave' => \$orig_master_is_new_slave,
+  'new_master_host=s'        => \$new_master_host,
+  'new_master_ip=s'          => \$new_master_ip,
+  'new_master_port=i'        => \$new_master_port,
+  'new_master_user=s'        => \$new_master_user,
+  'new_master_password=s'    => \$new_master_password,
+  'new_master_ssh_host=s'    => \$new_master_ssh_host,
+  'new_master_ssh_ip=s'      => \$new_master_ssh_ip,
+  'new_master_ssh_port=i'    => \$new_master_ssh_port,
+  'new_master_ssh_user=s'    => \$new_master_ssh_user,
+  'ssh_options=s'            => \$ssh_options,
+);
+
+$orig_master_ssh_ip ||= $orig_master_ssh_host
+  || $orig_master_ip
+  || $orig_master_host;
+$new_master_ssh_ip ||= $new_master_ssh_host
+  || $new_master_ip
+  || $new_master_host;
+
+exit &main();
+
+sub current_time_us {
+  my ( $sec, $microsec ) = gettimeofday();
+  my $curdate = localtime($sec);
+  return $curdate . "." . sprintf( "%06d", $microsec );
+}
+
+sub sleep_until {
+  my $elapsed = tv_interval($_tstart);
+  if ( $_running_interval > $elapsed ) {
+    sleep( $_running_interval - $elapsed );
+  }
+}
+
+sub get_threads_util {
+  my $dbh                    = shift;
+  my $my_connection_id       = shift;
+  my $running_time_threshold = shift;
+  my $type                   = shift;
+  $running_time_threshold = 0 unless ($running_time_threshold);
+  $type                   = 0 unless ($type);
+  my @threads;
+
+  my $sth = $dbh->prepare("SHOW PROCESSLIST");
+  $sth->execute();
+
+  while ( my $ref = $sth->fetchrow_hashref() ) {
+    my $id         = $ref->{Id};
+    my $user       = $ref->{User};
+    my $host       = $ref->{Host};
+    my $command    = $ref->{Command};
+    my $state      = $ref->{State};
+    my $query_time = $ref->{Time};
+    my $info       = $ref->{Info};
+    $info =~ s/^\s*(.*?)\s*$/$1/ if defined($info);
+    next if ( $my_connection_id == $id );
+    next if ( defined($query_time) && $query_time < $running_time_threshold );
+    next if ( defined($command) && $command eq "Binlog Dump" );
+    next if ( defined($user) && $user eq "system user" );
+    next
+      if ( defined($command)
+      && $command eq "Sleep"
+      && defined($query_time)
+      && $query_time >= 1 );
+
+    if ( $type >= 1 ) {
+      #next if ( defined($command) && $command eq "Sleep" );
+      next if ( defined($command) && $command eq "Connect" );
+    }
+
+    if ( $type >= 2 ) {
+      next if ( defined($info) && $info =~ m/^select/i );
+      next if ( defined($info) && $info =~ m/^show/i );
+    }
+
+    push @threads, $ref;
+  }
+  return @threads;
+}
+
+sub main {
+  if ( $command eq "stop" ) {
+    ## Gracefully killing connections on the current master
+    # 1. Set read_only= 1 on the new master
+    # 2. Disable app user so that no app user can establish new connections
+    # 3. Set read_only= 1 on the current master
+    # 4. Kill current queries
+    # * Any database access failure will result in script die.
+    my $exit_code = 1;
+    # check new master config before execute switch
+    my $cfg = $config->lookup( $new_master_ip, $new_master_port )
+       or die "lookup failed with $new_master_ip:$new_master_port";
+
+    eval {
+      ## Setting read_only=1 on the new master (to avoid accident)
+      my $new_master_handler = new Extra::MHA::DBHelper();
+      my $cfg = $config->lookup( $orig_master_ip, $orig_master_port )
+        or die "lookup failed with $orig_master_ip:$orig_master_port";
+
+      # proxysql setting 
+      my $proxysql_list = $cfg->{'proxysql'};
+      if ( $proxysql_list ) { 
+        foreach my $list (@$proxysql_list) {
+          my $proxysql_handler = new Extra::MHA::Proxysql();
+          $proxysql_handler->connect( $list->{'ip'}, $list->{'port'},
+            $list->{'user'}, $list->{'pass'}, "", 1); 
+
+          # delete repl group
+          if ($proxysql_handler->proxysql_delete_repl_group($list->{'wgroup'}, 
+             $list->{'rgroup'})) {
+            carp " delete proxysql repl group error!";
+          }   
+          else {
+            print current_time_us()
+                  . " delete proxysql repl group on "
+                  . $list->{'ip'} . ":" . $list->{'port'}
+                  . " ok!\n"
+          }   
+          if ($proxysql_handler->proxysql_load_server_to_runtime()) {
+            carp " load servers to runtime error!";
+          }
+
+          # set readonly to disable proxysql update configure in runtime;
+          if ($proxysql_handler->proxysql_readonly()) {
+            carp " set proxysql readonly failed!";
+          }
+          else {
+            print current_time_us()
+                  . " set read_only on proxysql "
+                  . $list->{'ip'} . ":" . $list->{'port'}
+                  . " ok!\n";
+          }
+          $proxysql_handler->disconnect();
+        }
+      }
+
+      # args: hostname, port, user, password, raise_error(die_on_error)_or_not
+      $new_master_handler->connect( $new_master_ip, $new_master_port,
+        $new_master_user, $new_master_password, 1 );
+      print current_time_us() . " Set read_only on the new master.. ";
+      $new_master_handler->enable_read_only();
+      if ( $new_master_handler->is_read_only() ) {
+        print "ok.\n";
+      }
+      else {
+        die "Failed!\n";
+      }
+      $new_master_handler->disconnect();
+
+      # Connecting to the orig master, die if any database error happens
+      my $orig_master_handler = new Extra::MHA::DBHelper();
+      $orig_master_handler->connect( $orig_master_ip, $orig_master_port,
+        $orig_master_user, $orig_master_password, 1 );
+
+      ## Drop application user so that nobody can connect. Disabling per-session binlog beforehand
+      $orig_master_handler->disable_log_bin_local();
+      print current_time_us() . " Blocking app user on the orig master..\n";
+      $orig_master_handler->block_user_regexp( $cfg->{'block_user'},
+        $cfg->{'block_host'} );
+
+      ## Waiting for N * 100 milliseconds so that current connections can exit
+      my $time_until_read_only = 15;
+      $_tstart = [gettimeofday];
+      my @threads = get_threads_util( $orig_master_handler->{dbh},
+        $orig_master_handler->{connection_id} );
+      while ( $time_until_read_only > 0 && $#threads >= 0 ) {
+        if ( $time_until_read_only % 5 == 0 ) {
+          printf
+"%s Waiting all running %d threads are disconnected.. (max %d milliseconds)\n",
+            current_time_us(), $#threads + 1, $time_until_read_only * 100;
+          if ( $#threads < 5 ) {
+            print Data::Dumper->new( [$_] )->Indent(0)->Terse(1)->Dump . "\n"
+              foreach (@threads);
+          }
+        }
+        sleep_until();
+        $_tstart = [gettimeofday];
+        $time_until_read_only--;
+        @threads = get_threads_util( $orig_master_handler->{dbh},
+          $orig_master_handler->{connection_id} );
+      }
+
+      ## Setting read_only=1 on the current master so that nobody(except SUPER) can write
+      print current_time_us() . " Set read_only=1 on the orig master.. ";
+      $orig_master_handler->enable_read_only();
+      if ( $orig_master_handler->is_read_only() ) {
+        print "ok.\n";
+      }
+      else {
+        die "Failed!\n";
+      }
+
+      ## Waiting for M * 100 milliseconds so that current update queries can complete
+      my $time_until_kill_threads = 5;
+      @threads = get_threads_util( $orig_master_handler->{dbh},
+        $orig_master_handler->{connection_id} );
+      while ( $time_until_kill_threads > 0 && $#threads >= 0 ) {
+        if ( $time_until_kill_threads % 5 == 0 ) {
+          printf
+"%s Waiting all running %d queries are disconnected.. (max %d milliseconds)\n",
+            current_time_us(), $#threads + 1, $time_until_kill_threads * 100;
+          if ( $#threads < 5 ) {
+            print Data::Dumper->new( [$_] )->Indent(0)->Terse(1)->Dump . "\n"
+              foreach (@threads);
+          }
+        }
+        sleep_until();
+        $_tstart = [gettimeofday];
+        $time_until_kill_threads--;
+        @threads = get_threads_util( $orig_master_handler->{dbh},
+          $orig_master_handler->{connection_id} );
+      }
+
+      ## Terminating all threads
+      print current_time_us() . " Killing all application threads..\n";
+      $orig_master_handler->kill_threads(@threads) if ( $#threads >= 0 );
+      print current_time_us() . " done.\n";
+
+      ## release app user to enable MHA auto change master.
+      if ($orig_master_handler->is_read_only()
+        && ($cfg->{vip} || $cfg->{proxysql}) ) {
+        print current_time_us() . " Release app user on the orig master..\n";
+        $orig_master_handler->release_user_regexp( $cfg->{'block_user'}, 
+          $cfg->{'block_host'});
+      }
+      $orig_master_handler->enable_log_bin_local();
+      $orig_master_handler->disconnect();
+
+      if ($cfg->{vip}) {
+        print current_time_us() . " Stopping VIP ..\n";
+        my $iphelper = Extra::MHA::IpHelper->new(
+          host => $orig_master_ssh_ip,
+          port => $orig_master_ssh_port
+        );
+        $iphelper->stop_vip( $cfg->{vip} );
+      }
+
+      ## After finishing the script, MHA executes FLUSH TABLES WITH READ LOCK
+      $exit_code = 0;
+    };
+    if ($@) {
+      warn "Got Error: $@\n";
+      exit $exit_code;
+    }
+    exit $exit_code;
+  }
+  elsif ( $command eq "start" ) {
+    ## Activating master ip on the new master
+    # 1. Create app user with write privileges
+    # 2. Moving backup script if needed
+    # 3. Register new master's ip to the catalog database
+
+# We don't return error even though activating updatable accounts/ip failed so that we don't interrupt slaves' recovery.
+# If exit code is 0 or 10, MHA does not abort
+    my $exit_code = 10;
+    eval {
+      my $new_master_handler = new Extra::MHA::DBHelper();
+      my $cfg = $config->lookup( $new_master_ip, $new_master_port )
+        or die "lookup failed with $new_master_ip:$new_master_port";
+
+      # args: hostname, port, user, password, raise_error_or_not
+      $new_master_handler->connect( $new_master_ip, $new_master_port,
+        $new_master_user, $new_master_password, 1 );
+
+      ## Set read_only=0 on the new master
+      $new_master_handler->disable_log_bin_local();
+      print current_time_us() . " Set read_only=0 on the new master.\n";
+      $new_master_handler->disable_read_only();
+
+      ## Creating an app user on the new master
+      print current_time_us() . " Releasing app user on the new master..\n";
+      $new_master_handler->release_user_regexp( $cfg->{'block_user'},
+        $cfg->{'block_host'} );
+      $new_master_handler->enable_log_bin_local();
+      $new_master_handler->disconnect();
+
+      if ($cfg->{vip}) {
+        print current_time_us() . " Starting VIP on the new master..\n";
+        my $iphelper = Extra::MHA::IpHelper->new(
+          host => $new_master_ssh_ip,
+          port => $new_master_ssh_port
+        );
+        $iphelper->start_vip( $cfg->{vip},
+          ( $cfg->{vip_on_loopback} ? ('lo') : () ) );
+      }
+
+      # proxysql setting
+      my $proxysql_list = $cfg->{'proxysql'};
+      if ($proxysql_list) {
+        foreach my $list (@$proxysql_list) {
+          my $proxysql_handler =  new Extra::MHA::Proxysql();
+          $proxysql_handler->connect($list->{'ip'}, $list->{'port'},
+             $list->{'user'}, $list->{'pass'}, 1);
+
+          # enable proxysql readwrite 
+          if ($proxysql_handler->proxysql_readwrite()) {
+            carp "set proxysql readwrite error!";
+            next;
+          }
+          else {
+            print current_time_us() . " set proxysql "
+                 . $list->{ip} . ":" . $list->{port}
+                 . " readwrite ok!\n"
+          }
+          # delete old read/write group with original master
+          if ($proxysql_handler->proxysql_delete_group($list->{wgroup},
+             $list->{rgroup}, $orig_master_host, $orig_master_port)) {
+            carp "delete old proxysql write group error!";
+          }
+          else {
+            print current_time_us()
+                 . " Delete old proxysql write group "
+                 . "$orig_master_host:$orig_master_port"
+                 . " with group " . $list->{'wgroup'} . " ok!\n";
+
+          }
+          # insert new write group
+          if ($proxysql_handler->proxysql_insert_new_server($list->{'wgroup'},
+                $new_master_host, $new_master_port, 0)) {
+            carp "insert new write group error!";
+          }
+          else {
+            print current_time_us()
+                  . " Insert new proxysql write group "
+                  . "$new_master_host:$new_master_port"
+                  . " with group " . $list->{'wgroup'} . " ok!\n";
+          }
+
+          # insert new read group
+          if ($proxysql_handler->proxysql_insert_new_server($list->{'rgroup'},
+                $new_master_host, $new_master_port, 0)) {
+            carp "insert new read group error!";
+          }
+          else {
+            print current_time_us()
+                  . " Insert new proxysql read group "
+                  . "$new_master_host:$new_master_port"
+                  . " with group " . $list->{'rgroup'} . " ok!\n";
+          }
+          # insert orig master as new slave
+          my $orig_master_handler = new Extra::MHA::DBHelper();
+          $orig_master_handler->connect( $orig_master_ip, $orig_master_port,
+              $orig_master_user, $orig_master_password, 1 );
+          if ($orig_master_handler->is_read_only()) {
+            if ($proxysql_handler->proxysql_insert_new_server($list->{'rgroup'}, 
+                $orig_master_host, $orig_master_port, 30)) {
+               carp "insert orig master as read group error!";
+            }
+            else {
+              print current_time_us() 
+                    . " Insert orig master as new proxysql read group "
+                    . "$orig_master_host:$orig_master_port"
+                    . " with group " . $list->{'rgroup'} . " ok!\n";
+            }
+          }
+          # insert new repl group
+          if ($proxysql_handler->proxysql_insert_repl_group($list->{'wgroup'},
+             $list->{'rgroup'})) {
+            carp " insert proxysql repl group error!";
+          }
+          else {
+            print current_time_us()
+                  . " insert proxysql repl group on "
+                  . $list->{'ip'} . ":" . $list->{'port'}
+                  . " ok!\n"
+          }
+          # load mysql servers to runtime.
+          if ($proxysql_handler->proxysql_load_server_to_runtime()) {
+            carp "proxysql load mysql server to runtime error!";
+          }
+          else {
+            print current_time_us() . " proxysql load server to runtime ok!\n";
+          }
+
+          if ($proxysql_handler->proxysql_save_server_to_disk()) {
+            carp "proxysql save mysql server to disk error!";
+          }
+          else {
+            print current_time_us() . " proxysql save server to disk ok!\n";
+          }
+        }
+      }
+
+      ## Update master ip on the catalog database, etc
+      $exit_code = 0;
+    };
+    if ($@) {
+      warn "Got Error: $@\n";
+      exit $exit_code;
+    }
+    exit $exit_code;
+  }
+  elsif ( $command eq "status" ) {
+    my $cfg = $config->lookup( $orig_master_ip, $orig_master_port )
+      or die "lookup failed with $orig_master_ip:$orig_master_port";
+
+    my $iphelper = Extra::MHA::IpHelper->new(
+      host => $orig_master_ssh_ip,
+      port => $orig_master_ssh_port
+    );
+    if ( $iphelper->check_node_vip( $cfg->{vip} ) ) {
+      print "vip $cfg->{vip} is configured\n";
+      exit 0;
+    }
+    else {
+      warn "vip $cfg->{vip} is not configured on host $orig_master_ssh_host";
+      exit 1;
+    }
+  }
+  else {
+    &usage();
+    exit 1;
+  }
+}
+
+sub usage {
+  print
+"Usage: master_ip_online_change --command=start|stop|status --orig_master_host=host --orig_master_ip=ip --orig_master_port=port --new_master_host=host --new_master_ip=ip --new_master_port=port\n";
+  die;
+}
+
