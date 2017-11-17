@@ -1,0 +1,124 @@
+Thu Nov 16 15:51:55 2017 - [info] MHA::MasterRotate version 0.56.
+Thu Nov 16 15:51:55 2017 - [info] Starting online master switch..
+Thu Nov 16 15:51:55 2017 - [info] 
+Thu Nov 16 15:51:55 2017 - [info] * Phase 1: Configuration Check Phase..
+Thu Nov 16 15:51:55 2017 - [info] 
+Thu Nov 16 15:51:55 2017 - [info] Reading default configuration from /etc/masterha/app_default.cnf..
+Thu Nov 16 15:51:55 2017 - [info] Reading application default configuration from /etc/masterha/app_56.conf..
+Thu Nov 16 15:51:55 2017 - [info] Updating application default configuration from /usr/bin/init_conf_loads..
+Thu Nov 16 15:51:55 2017 - [info] Reading server configuration from /etc/masterha/app_56.conf..
+Thu Nov 16 15:51:56 2017 - [info] GTID failover mode = 1
+Thu Nov 16 15:51:56 2017 - [info] Current Alive Master: 10.0.21.17(10.0.21.17:3308)
+Thu Nov 16 15:51:56 2017 - [info] Alive Slaves:
+Thu Nov 16 15:51:56 2017 - [info]   10.0.21.7(10.0.21.7:3308)  Version=5.6.21-69.0-log (oldest major version between slaves) log-bin:enabled
+Thu Nov 16 15:51:56 2017 - [info]     GTID ON
+Thu Nov 16 15:51:56 2017 - [info]     Replicating from 10.0.21.17(10.0.21.17:3308)
+Thu Nov 16 15:51:56 2017 - [info]     Primary candidate for the new Master (candidate_master is set)
+
+It is better to execute FLUSH NO_WRITE_TO_BINLOG TABLES on the master before switching. Is it ok to execute on 10.0.21.17(10.0.21.17:3308)? (YES/no): yes
+Thu Nov 16 15:51:58 2017 - [info] Executing FLUSH NO_WRITE_TO_BINLOG TABLES. This may take long time..
+Thu Nov 16 15:51:58 2017 - [info]  ok.
+Thu Nov 16 15:51:58 2017 - [info] Checking MHA is not monitoring or doing failover..
+Thu Nov 16 15:51:58 2017 - [info] Checking replication health on 10.0.21.7..
+Thu Nov 16 15:51:58 2017 - [info]  ok.
+Thu Nov 16 15:51:58 2017 - [info] Searching new master from slaves..
+Thu Nov 16 15:51:58 2017 - [info]  Candidate masters from the configuration file:
+Thu Nov 16 15:51:58 2017 - [info]   10.0.21.7(10.0.21.7:3308)  Version=5.6.21-69.0-log (oldest major version between slaves) log-bin:enabled
+Thu Nov 16 15:51:58 2017 - [info]     GTID ON
+Thu Nov 16 15:51:58 2017 - [info]     Replicating from 10.0.21.17(10.0.21.17:3308)
+Thu Nov 16 15:51:58 2017 - [info]     Primary candidate for the new Master (candidate_master is set)
+Thu Nov 16 15:51:58 2017 - [info]   10.0.21.17(10.0.21.17:3308)  Version=5.6.21-69.0-log log-bin:enabled
+Thu Nov 16 15:51:58 2017 - [info]     GTID ON
+Thu Nov 16 15:51:58 2017 - [info]  Non-candidate masters:
+Thu Nov 16 15:51:58 2017 - [info]  Searching from candidate_master slaves which have received the latest relay log events..
+Thu Nov 16 15:51:58 2017 - [info] 
+From:
+10.0.21.17(10.0.21.17:3308) (current master)
+ +--10.0.21.7(10.0.21.7:3308)
+
+To:
+10.0.21.7(10.0.21.7:3308) (new master)
+ +--10.0.21.17(10.0.21.17:3308)
+
+Starting master switch from 10.0.21.17(10.0.21.17:3308) to 10.0.21.7(10.0.21.7:3308)? (yes/NO): yes
+Thu Nov 16 15:52:00 2017 - [info] Checking whether 10.0.21.7(10.0.21.7:3308) is ok for the new master..
+Thu Nov 16 15:52:00 2017 - [info]  ok.
+Thu Nov 16 15:52:00 2017 - [info] 10.0.21.17(10.0.21.17:3308): SHOW SLAVE STATUS returned empty result. To check replication filtering rules, temporarily executing CHANGE MASTER to a dummy host.
+Thu Nov 16 15:52:00 2017 - [info] 10.0.21.17(10.0.21.17:3308): Resetting slave pointing to the dummy host.
+Thu Nov 16 15:52:00 2017 - [info] ** Phase 1: Configuration Check Phase completed.
+Thu Nov 16 15:52:00 2017 - [info] 
+Thu Nov 16 15:52:00 2017 - [info] * Phase 2: Rejecting updates Phase..
+Thu Nov 16 15:52:00 2017 - [info] 
+Thu Nov 16 15:52:00 2017 - [info] Executing master ip online change script to disable write on the current master:
+Thu Nov 16 15:52:00 2017 - [info]   /usr/bin/master_ip_online_change --command=stop --orig_master_host=10.0.21.17 --orig_master_ip=10.0.21.17 --orig_master_port=3308 --orig_master_user='root' --orig_master_password='xxxxxx' --new_master_host=10.0.21.7 --new_master_ip=10.0.21.7 --new_master_port=3308 --new_master_user='root' --new_master_password='xxxxxx' --orig_master_ssh_user=mha --new_master_ssh_user=mha  --ssh_options='-o ServerAliveInterval=60 -o ServerAliveCountMax=20 -o StrictHostKeyChecking=no -o ConnectionAttempts=5 -o PasswordAuthentication=no -o BatchMode=yes -i /home/mha/.ssh/id_rsa'   --orig_master_is_new_slave
+Thu Nov 16 15:52:00 2017.490641 delete proxysql repl group on 10.0.21.5:6032 ok!
+Thu Nov 16 15:52:00 2017.497134 set read_only on proxysql 10.0.21.5:6032 ok!
+Thu Nov 16 15:52:00 2017.500391 delete proxysql repl group on 10.0.21.7:6032 ok!
+Thu Nov 16 15:52:00 2017.508106 set read_only on proxysql 10.0.21.7:6032 ok!
+Thu Nov 16 15:52:00 2017.511853 Set read_only on the new master.. ok.
+Thu Nov 16 15:52:00 2017.517152 Blocking app user on the orig master..
+Thu Nov 16 15:52:00 2017.521610 Waiting all running 2 threads are disconnected.. (max 1500 milliseconds)
+{'Time' => '91','db' => undef,'Id' => '16487','User' => 'user_replica','State' => 'Master has sent all binlog to slave; waiting for binlog to be updated','Command' => 'Binlog Dump GTID','Rows_examined' => '0','Info' => undef,'Host' => '10.0.21.7:55573','Rows_sent' => '0'}
+{'Time' => '0','db' => undef,'Id' => '16489','User' => 'proxysqlmon','State' => '','Command' => 'Sleep','Rows_examined' => '1','Info' => undef,'Host' => '10.0.21.5:56059','Rows_sent' => '1'}
+Thu Nov 16 15:52:01 2017.023535 Waiting all running 3 threads are disconnected.. (max 1000 milliseconds)
+{'Time' => '0','db' => undef,'Id' => '15960','User' => 'proxysqlmon','State' => '','Command' => 'Sleep','Rows_examined' => '0','Info' => undef,'Host' => '10.0.21.7:54111','Rows_sent' => '0'}
+{'Time' => '91','db' => undef,'Id' => '16487','User' => 'user_replica','State' => 'Master has sent all binlog to slave; waiting for binlog to be updated','Command' => 'Binlog Dump GTID','Rows_examined' => '0','Info' => undef,'Host' => '10.0.21.7:55573','Rows_sent' => '0'}
+{'Time' => '0','db' => undef,'Id' => '16489','User' => 'proxysqlmon','State' => '','Command' => 'Sleep','Rows_examined' => '0','Info' => undef,'Host' => '10.0.21.5:56059','Rows_sent' => '0'}
+Thu Nov 16 15:52:01 2017.524518 Waiting all running 1 threads are disconnected.. (max 500 milliseconds)
+{'Time' => '92','db' => undef,'Id' => '16487','User' => 'user_replica','State' => 'Master has sent all binlog to slave; waiting for binlog to be updated','Command' => 'Binlog Dump GTID','Rows_examined' => '0','Info' => undef,'Host' => '10.0.21.7:55573','Rows_sent' => '0'}
+Thu Nov 16 15:52:02 2017.025009 Set read_only=1 on the orig master.. ok.
+Thu Nov 16 15:52:02 2017.028706 Waiting all running 1 queries are disconnected.. (max 500 milliseconds)
+{'Time' => '92','db' => undef,'Id' => '16487','User' => 'user_replica','State' => 'Master has sent all binlog to slave; waiting for binlog to be updated','Command' => 'Binlog Dump GTID','Rows_examined' => '0','Info' => undef,'Host' => '10.0.21.7:55573','Rows_sent' => '0'}
+Thu Nov 16 15:52:02 2017.526151 Killing all application threads..
+Thu Nov 16 15:52:02 2017.527516 done.
+Thu Nov 16 15:52:02 2017.528644 Release app user on the orig master..
+Thu Nov 16 15:52:02 2017.533862 Stopping VIP ..
+Thu Nov 16 15:52:03 2017 - [info]  ok.
+Thu Nov 16 15:52:03 2017 - [info] Locking all tables on the orig master to reject updates from everybody (including root):
+Thu Nov 16 15:52:03 2017 - [info] Executing FLUSH TABLES WITH READ LOCK..
+Thu Nov 16 15:52:03 2017 - [info]  ok.
+Thu Nov 16 15:52:03 2017 - [info] Orig master binlog:pos is mysql-bin.000010:4115.
+Thu Nov 16 15:52:03 2017 - [info]  Waiting to execute all relay logs on 10.0.21.7(10.0.21.7:3308)..
+Thu Nov 16 15:52:03 2017 - [info]  master_pos_wait(mysql-bin.000010:4115) completed on 10.0.21.7(10.0.21.7:3308). Executed 0 events.
+Thu Nov 16 15:52:03 2017 - [info]   done.
+Thu Nov 16 15:52:03 2017 - [info] Getting new master's binlog name and position..
+Thu Nov 16 15:52:03 2017 - [info]  mysql-bin.000001:4115
+Thu Nov 16 15:52:03 2017 - [info]  All other slaves should start replication from here. Statement should be: CHANGE MASTER TO MASTER_HOST='10.0.21.7', MASTER_PORT=3308, MASTER_AUTO_POSITION=1, MASTER_USER='user_replica', MASTER_PASSWORD='xxx';
+Thu Nov 16 15:52:03 2017 - [info] Executing master ip online change script to allow write on the new master:
+Thu Nov 16 15:52:03 2017 - [info]   /usr/bin/master_ip_online_change --command=start --orig_master_host=10.0.21.17 --orig_master_ip=10.0.21.17 --orig_master_port=3308 --orig_master_user='root' --orig_master_password='xxxxxx' --new_master_host=10.0.21.7 --new_master_ip=10.0.21.7 --new_master_port=3308 --new_master_user='root' --new_master_password='xxxxxx' --orig_master_ssh_user=mha --new_master_ssh_user=mha  --ssh_options='-o ServerAliveInterval=60 -o ServerAliveCountMax=20 -o StrictHostKeyChecking=no -o ConnectionAttempts=5 -o PasswordAuthentication=no -o BatchMode=yes -i /home/mha/.ssh/id_rsa'   --orig_master_is_new_slave
+Thu Nov 16 15:52:04 2017.071473 Set read_only=0 on the new master.
+Thu Nov 16 15:52:04 2017.073304 Releasing app user on the new master..
+Thu Nov 16 15:52:04 2017.075662 Starting VIP on the new master..
+Thu Nov 16 15:52:06 2017.306421 set proxysql 10.0.21.5:6032 readwrite ok!
+Thu Nov 16 15:52:06 2017.306978 Delete old proxysql write group 10.0.21.17:3308 with group 1 ok!
+Thu Nov 16 15:52:06 2017.307767 Insert new proxysql write group 10.0.21.7:3308 with group 1 ok!
+Thu Nov 16 15:52:06 2017.308202 Insert new proxysql read group 10.0.21.7:3308 with group 2 ok!
+Thu Nov 16 15:52:06 2017.312171 Insert orig master as new proxysql read group 10.0.21.17:3308 with group 2 ok!
+Thu Nov 16 15:52:06 2017.312908 insert proxysql repl group on 10.0.21.5:6032 ok!
+Thu Nov 16 15:52:06 2017.321330 proxysql load server to runtime ok!
+Thu Nov 16 15:52:06 2017.348377 proxysql save server to disk ok!
+Thu Nov 16 15:52:06 2017.352720 set proxysql 10.0.21.7:6032 readwrite ok!
+Thu Nov 16 15:52:06 2017.353430 Delete old proxysql write group 10.0.21.17:3308 with group 1 ok!
+Thu Nov 16 15:52:06 2017.354135 Insert new proxysql write group 10.0.21.7:3308 with group 1 ok!
+Thu Nov 16 15:52:06 2017.354895 Insert new proxysql read group 10.0.21.7:3308 with group 2 ok!
+Thu Nov 16 15:52:06 2017.359129 Insert orig master as new proxysql read group 10.0.21.17:3308 with group 2 ok!
+Thu Nov 16 15:52:06 2017.360009 insert proxysql repl group on 10.0.21.7:6032 ok!
+Thu Nov 16 15:52:06 2017.367143 proxysql load server to runtime ok!
+Thu Nov 16 15:52:06 2017.388661 proxysql save server to disk ok!
+Thu Nov 16 15:52:06 2017 - [info]  ok.
+Thu Nov 16 15:52:06 2017 - [info] 
+Thu Nov 16 15:52:06 2017 - [info] * Switching slaves in parallel..
+Thu Nov 16 15:52:06 2017 - [info] 
+Thu Nov 16 15:52:06 2017 - [info] Unlocking all tables on the orig master:
+Thu Nov 16 15:52:06 2017 - [info] Executing UNLOCK TABLES..
+Thu Nov 16 15:52:06 2017 - [info]  ok.
+Thu Nov 16 15:52:06 2017 - [info] Starting orig master as a new slave..
+Thu Nov 16 15:52:06 2017 - [info]  Resetting slave 10.0.21.17(10.0.21.17:3308) and starting replication from the new master 10.0.21.7(10.0.21.7:3308)..
+Thu Nov 16 15:52:06 2017 - [info]  Executed CHANGE MASTER.
+Thu Nov 16 15:52:07 2017 - [info]  Slave started.
+Thu Nov 16 15:52:07 2017 - [info] All new slave servers switched successfully.
+Thu Nov 16 15:52:07 2017 - [info] 
+Thu Nov 16 15:52:07 2017 - [info] * Phase 5: New master cleanup phase..
+Thu Nov 16 15:52:07 2017 - [info] 
+Thu Nov 16 15:52:07 2017 - [info]  10.0.21.7: Resetting slave info succeeded.
+Thu Nov 16 15:52:07 2017 - [info] Switching master to 10.0.21.7(10.0.21.7:3308) completed successfully.

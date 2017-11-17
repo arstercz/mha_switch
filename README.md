@@ -13,6 +13,8 @@ mha_switch
 │   ├── init_conf_loads
 │   ├── master_ip_failover
 │   └── master_ip_online_change
+├── log
+│   └── switch.log
 ├── masterha
 │   ├── app_56.conf
 │   ├── app_default.cnf
