@@ -1,10 +1,10 @@
 ## mha_switch
 
-swith MySQL replication with custom scripts by use [MHA](https://github.com/yoshinorim/mha4mysql-manager)
+Switch MySQL replication with custom scripts by use [MHA](https://github.com/yoshinorim/mha4mysql-manager)
 
-#### all dependecy Perl modules are the same with `MHA`, and all of the scripts are based on `MHA 0.56` version.
+note: all dependecy Perl modules are the same with `MHA`, and all of the scripts are based on `MHA 0.56` version.
 
-## Instruction
+## Introduction
 
 the full code structure:
 ```
