@@ -1,6 +1,6 @@
 ## mha_switch
 
-Switch MySQL replication with custom scripts by use [MHA](https://github.com/yoshinorim/mha4mysql-manager)
+Switch MySQL replication with custom scripts by use [MHA](https://github.com/yoshinorim/mha4mysql-manager), read more from [blog](https://highdb.com/mha_switch-%E7%BB%93%E5%90%88-proxysql-%E5%92%8C-mha-%E5%88%87%E6%8D%A2-mysql-%E4%B8%BB%E4%BB%8E/).
 
 note: all dependecy Perl modules are the same with `MHA`, and all of the scripts are based on `MHA 0.56` version.
 
@@ -62,7 +62,7 @@ if we have the following structure:
          +----------+-------------------------+----------------------+
          |                                                           |
          |    +--------+                  +-------+                  |
-         |    | master | 10.0.21.17:3308  | slave | 10.0.21.7:3308  |
+         |    | master | 10.0.21.17:3308  | slave | 10.0.21.7:3308   |
          |    +--------+                  +-------+                  |
          |                                                           |
          +-----------------------------------------------------------+
