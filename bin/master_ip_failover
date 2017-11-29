@@ -137,6 +137,11 @@ sub main {
       print "Set read_only=0 on the new master.\n";
       $new_master_handler->disable_read_only();
 
+      ## change rpl_semi_sync variables if enable semi replication
+      print current_time_us() 
+        . " reset new master rpl_semi_sync variables if enable semi replication\n";
+      $new_master_handler->rpl_semi_new_master_set();
+      
       $new_master_handler->enable_log_bin_local();
       $new_master_handler->disconnect();
 

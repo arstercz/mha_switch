@@ -192,6 +192,11 @@ use constant Blocked_Empty_Password       => '?' x 41;
 use constant Blocked_Old_Password_Head    => '~' x 25;
 use constant Blocked_New_Password_Regexp  => qr/^[0-9a-fA-F]{40}\*$/o;
 use constant Released_New_Password_Regexp => qr/^\*[0-9a-fA-F]{40}$/o;
+use constant Set_Rpl_Semi_Sync_Master_OFF => "SET GLOBAL rpl_semi_sync_master_enabled = OFF";
+use constant Set_Rpl_Semi_Sync_Master_ON => "SET GLOBAL rpl_semi_sync_master_enabled = ON";
+use constant Set_Rpl_Semi_Sync_Master_Timeout => "SET GLOBAL rpl_semi_sync_master_timeout = 2000";
+use constant Set_Rpl_Semi_Sync_Slave_OFF => "SET GLOBAL rpl_semi_sync_slave_enabled = OFF";
+use constant Set_Rpl_Semi_Sync_Slave_On => "SET GLOBAL rpl_semi_sync_slave_enabled = ON";
 
 sub new {
   my ($class) = @_;
@@ -261,6 +266,23 @@ sub block_user_regexp {
 sub release_user_regexp {
   my ( $self, $user, $host ) = @_;
   return _block_release_user_by_regexp( $self->{dbh}, $user, $host, 0 );
+}
+
+sub rpl_semi_orig_master_set {
+  my $self = shift;
+  if ($self->show_variable("rpl_semi_sync_master_enabled") eq "ON") {
+    $self->execute(Set_Rpl_Semi_Sync_Master_OFF);
+    $self->execute(Set_Rpl_Semi_Sync_Slave_On);
+  }
+}
+
+sub rpl_semi_new_master_set {
+  my $self = shift;
+  if ($self->show_variable("rpl_semi_sync_slave_enabled") eq "ON") {
+    $self->execute(Set_Rpl_Semi_Sync_Slave_OFF);
+    $self->execute(Set_Rpl_Semi_Sync_Master_ON);
+    $self->execute(Set_Rpl_Semi_Sync_Master_Timeout);
+  }
 }
 
 1;

@@ -281,6 +281,11 @@ sub main {
         $orig_master_handler->release_user_regexp( $cfg->{'block_user'}, 
           $cfg->{'block_host'});
       }
+      ## change rpl_semi_sync variables if enable semi replication
+      print current_time_us() 
+        . "reset orig master rpl_semi_sync variables if enable semi replication\n";
+      $orig_master_handler->rpl_semi_orig_master_set();
+
       $orig_master_handler->enable_log_bin_local();
       $orig_master_handler->disconnect();
 
@@ -329,6 +334,12 @@ sub main {
       print current_time_us() . " Releasing app user on the new master..\n";
       $new_master_handler->release_user_regexp( $cfg->{'block_user'},
         $cfg->{'block_host'} );
+
+      ## change rpl_semi_sync variables if enable semi replication
+      print current_time_us() 
+        . " reset new master rpl_semi_sync variables if enable semi replication\n";
+      $new_master_handler->rpl_semi_new_master_set();
+
       $new_master_handler->enable_log_bin_local();
       $new_master_handler->disconnect();
 
