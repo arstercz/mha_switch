@@ -270,7 +270,8 @@ sub release_user_regexp {
 
 sub rpl_semi_orig_master_set {
   my $self = shift;
-  if ($self->show_variable("rpl_semi_sync_master_enabled") eq "ON") {
+  my $status = $self->show_variable("rpl_semi_sync_master_enabled") || '';
+  if ($status eq "ON") {
     $self->execute(Set_Rpl_Semi_Sync_Master_OFF);
     $self->execute(Set_Rpl_Semi_Sync_Slave_On);
   }
@@ -278,7 +279,8 @@ sub rpl_semi_orig_master_set {
 
 sub rpl_semi_new_master_set {
   my $self = shift;
-  if ($self->show_variable("rpl_semi_sync_slave_enabled") eq "ON") {
+  my $status = $self->show_variable("rpl_semi_sync_slave_enabled") || '';
+  if ($status eq "ON") {
     $self->execute(Set_Rpl_Semi_Sync_Slave_OFF);
     $self->execute(Set_Rpl_Semi_Sync_Master_ON);
     $self->execute(Set_Rpl_Semi_Sync_Master_Timeout);
