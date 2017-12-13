@@ -2,7 +2,7 @@
 user=root
 init_conf_load_script=/usr/bin/init_conf_loads
 ssh_user=mha
-ssh_options="-i /home/mha/.ssh/id_rsa"
+ssh_options="-i /home/mha/.ssh/id_rsa -o ConnectTimeout=3"
 remote_workdir=/web/masterhalog
 ping_interval=3
 master_ip_failover_script=/usr/bin/master_ip_failover
