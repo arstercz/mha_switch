@@ -43,7 +43,7 @@ read more from [proxysql](https://github.com/sysown/proxysql).
 1. `app_56.conf` is one MySQL replication instances.
 
 2. `masterha-script.cnf` is the MySQL replication info which refers to `app_56.conf`, you can specify multigroup if you have multiple MySQL replications. the `proxysql` is optional option, you can set multiple proxysqls(master/backup) which split by comma symbol. eg:
-```sql
+```
 10.0.21.7:3308 10.0.21.17:3308
    vip 10.0.21.97   
    block_user ^percona$|^proxysqlmon$
@@ -59,7 +59,15 @@ proxysql1:
   port:        6032        # admin port
   write group: 1           # begin with w
   read group:  2           # begin with r
-``
+
+proxysql2:
+  username:    admin2
+  password:    admin2
+  ip:          10.0.21.7
+  port:        6032        # admin port
+  write group: 1           # begin with w
+  read group:  2           # begin with r
+```
 
 ## How to use
 
