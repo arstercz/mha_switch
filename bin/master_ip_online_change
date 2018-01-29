@@ -162,6 +162,7 @@ sub main {
           my $proxysql_handler = new Extra::MHA::Proxysql();
           $proxysql_handler->connect( $list->{'ip'}, $list->{'port'},
             $list->{'user'}, $list->{'pass'}, "", 1); 
+          next unless $proxysql_handler->{dbh};
 
           # delete repl group
           if ($proxysql_handler->proxysql_delete_repl_group($list->{'wgroup'}, 
@@ -360,6 +361,7 @@ sub main {
           my $proxysql_handler =  new Extra::MHA::Proxysql();
           $proxysql_handler->connect($list->{'ip'}, $list->{'port'},
              $list->{'user'}, $list->{'pass'}, 1);
+          next unless $proxysql_handler->{dbh};
 
           # enable proxysql readwrite 
           if ($proxysql_handler->proxysql_readwrite()) {
@@ -467,12 +469,16 @@ sub main {
       host => $orig_master_ssh_ip,
       port => $orig_master_ssh_port
     );
-    if ( $iphelper->check_node_vip( $cfg->{vip} ) ) {
+    if ( !$cfg->{vip} && $cfg->{'proxysql'} ) {
+      print "use proxysql without vip configured\n";
+      exit 0;
+    }
+    elsif ( $iphelper->check_node_vip( $cfg->{vip} ) ) {
       print "vip $cfg->{vip} is configured\n";
       exit 0;
     }
     else {
-      warn "vip $cfg->{vip} is not configured on host $orig_master_ssh_host";
+      warn "neither vip $cfg->{vip} is not configured on host $orig_master_ssh_host nor does not use proxysql\n";
       exit 1;
     }
   }

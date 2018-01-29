@@ -140,7 +140,7 @@ sub _parse {
   }
   for my $s (@lookup) {
     my $server = "$s->{ip}:$s->{port}";
-    croak "vip is not configured for $server at line @{$seen_server{$server}}"
+    carp "vip is not configured for $server at line @{$seen_server{$server}}"
       unless $s->{vip};
     croak
 "block_user and block_host must be both or none for $server at line @{$seen_server{$server}}"
@@ -543,7 +543,7 @@ sub connect {
   };  
   if (!$dbh && $@) {
     carp "get proxysql connect for $host:$port error:$@";
-    return undef;
+    $self->{dbh}->undef;
   }
   $self->{dbh} = $dbh;
 }
