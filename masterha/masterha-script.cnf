@@ -4,6 +4,7 @@
 #   settings are indented
 # 
 # directives: vip, block_user, block_host, vip_on_loopback
+# vip and proxysql are optional option, you can ignore if you do not use vip or proxysql
 
 #127.0.0.1:3308 127.0.0.1:3309
 #  vip 127.0.0.3

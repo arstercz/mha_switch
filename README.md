@@ -44,13 +44,14 @@ read more from [proxysql](https://github.com/sysown/proxysql).
 
 2. `masterha-script.cnf` is the MySQL replication info which refers to `app_56.conf`, you can specify multigroup if you have multiple MySQL replications. the `proxysql` is optional option, you can set multiple proxysqls(master/backup) which split by comma symbol. eg:
 ```
+# vip and proxysql are optional option, you can ignore if you do not use vip or proxysql
 10.0.21.7:3308 10.0.21.17:3308
-   vip 10.0.21.97   
+   vip 10.0.21.97
    block_user ^percona$|^proxysqlmon$
    block_host ^10\.0\.21\.%$
    proxysql admin2:admin2@10.0.21.5:6032:w1:r2,admin2:admin2@10.0.21.7:6032:w1:r2
 ```
-the `10.0.21.7:3308 10.0.21.17:3308` is the master, slave ip address and port, you must specify multi `ip:port` if you have many slaves; `vip 10.0.21.97` means that master services to application with the virtual ip address, MHA will switch the vip address when you use MHA switch the replication, this means the application will do nothing to connect new master only when it has the retry mechanism; `block_user` and `block_host` means MHA will block the user which in old master instance, read more from [blocking-user-accounts](http://code.openark.org/blog/mysql/blocking-user-accounts); the last line `proxysql` option is optional, you can setup if you use proxysql, the value means there are two proxysqls, include the following proxysql administration info:
+the `10.0.21.7:3308 10.0.21.17:3308` is the master, slave ip address and port, you must specify multi `ip:port` if you have many slaves; `vip 10.0.21.97` means that master services to application by the virtual ip address, MHA will switch the vip address when you use MHA switch the replication, this means the application will do nothing to connect new master only when it has the retry mechanism, `vip` is optional option, you can ignore this if you do not use vip address; `block_user` and `block_host` means MHA will block the user which in old master instance, read more from [blocking-user-accounts](http://code.openark.org/blog/mysql/blocking-user-accounts); the last line `proxysql` option is optional, you can setup if you use proxysql, the value means there are two proxysqls, include the following proxysql administration info:
 ```
 proxysql1:
   username:    admin2
