@@ -183,8 +183,13 @@ use Carp;
 use constant Get_Privileges_SQL => "SHOW GRANTS";
 use constant Select_User_Regexp_SQL =>
 "SELECT user, host, password FROM mysql.user WHERE user REGEXP ? AND host REGEXP ?";
-use constant Set_Password_SQL => "SET PASSWORD FOR ?\@? = ?";
 
+# for MySQL 5.7 or above version
+use constant Select_User_Regexp_New_SQL =>
+"SELECT user, host, authentication_string AS password FROM mysql.user WHERE user REGEXP ? AND host REGEXP ?";
+use constant Get_Version_SQL => "SELECT LEFT(VERSION(), 3) AS Value";
+
+use constant Set_Password_SQL => "SET PASSWORD FOR ?\@? = ?";
 use constant Granted_Privileges =>
   '^GRANT ([A-Z, ]+) ON (`\\w+`|\\*)\\.\\* TO';    # poor match on db
 use constant Old_Password_Length          => 16;
@@ -201,6 +206,21 @@ use constant Set_Rpl_Semi_Sync_Slave_On => "SET GLOBAL rpl_semi_sync_slave_enabl
 sub new {
   my ($class) = @_;
   bless {}, __PACKAGE__;
+}
+
+sub _get_variable {
+  my $dbh = shift;
+  my $query = shift;
+  my $sth = $dbh->prepare($query);
+  $sth->execute();
+  my $href = $sth->fetchrow_hashref;
+  return $href->{Value} || 5.5;
+}
+
+sub _get_version {
+  my $dbh  = shift;
+  my $value = _get_variable($dbh, Get_Version_SQL);
+  return $value;
 }
 
 # see http://code.openark.org/blog/mysql/blocking-user-accounts
@@ -238,9 +258,18 @@ sub _released_password {
 
 sub _block_release_user_by_regexp {
   my ( $dbh, $user, $host, $block ) = @_;
-  my $users_to_block =
-    $dbh->selectall_arrayref( Select_User_Regexp_SQL, { Slice => {} },
-    $user, $host );
+  #my $users_to_block = $dbh->selectall_arrayref( Select_User_Regexp_SQL, { Slice => {} },
+  #$user, $host );
+  my $users_to_block = do {
+    if ( _get_version($dbh) >= 5.7 ) {
+      $dbh->selectall_arrayref( Select_User_Regexp_New_SQL, { Slice => {} },
+            $user, $host );
+    }
+    else {
+      $dbh->selectall_arrayref( Select_User_Regexp_SQL, { Slice => {} },
+            $user, $host );
+    }
+  };
   my $failure = 0;
   for my $u ( @{$users_to_block} ) {
     my $password =
