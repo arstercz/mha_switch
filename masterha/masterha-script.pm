@@ -413,8 +413,9 @@ sub parse_ipaddr {
   my %intf   = ();
   my $name;
   for ( @{$output} ) {
-    if (/^\d+: (\w+): <[^,]+(?:,[^,]+)*> mtu \d+ qdisc \w+/) {
+    if (/^\d+: (\S+): <[^,]+(?:,[^,]+)*> mtu \d+ qdisc \w+/) {
       $name = $1;
+      $name =~ s/\@.*//g if $name =~ /\@/;
     }
     elsif (/^\s+link\/(\w+) (\S+) brd (\S+)/) {
       $intf{$name}{'link'} = { type => $1, mac => $2, brd => $3 };
