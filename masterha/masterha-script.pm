@@ -198,10 +198,16 @@ use constant Blocked_Old_Password_Head    => '~' x 25;
 use constant Blocked_New_Password_Regexp  => qr/^[0-9a-fA-F]{40}\*$/o;
 use constant Released_New_Password_Regexp => qr/^\*[0-9a-fA-F]{40}$/o;
 use constant Set_Rpl_Semi_Sync_Master_OFF => "SET GLOBAL rpl_semi_sync_master_enabled = OFF";
-use constant Set_Rpl_Semi_Sync_Master_ON => "SET GLOBAL rpl_semi_sync_master_enabled = ON";
+use constant Set_Rpl_Semi_Sync_Master_ON  => "SET GLOBAL rpl_semi_sync_master_enabled = ON";
 use constant Set_Rpl_Semi_Sync_Master_Timeout => "SET GLOBAL rpl_semi_sync_master_timeout = 2000";
-use constant Set_Rpl_Semi_Sync_Slave_OFF => "SET GLOBAL rpl_semi_sync_slave_enabled = OFF";
-use constant Set_Rpl_Semi_Sync_Slave_On => "SET GLOBAL rpl_semi_sync_slave_enabled = ON";
+use constant Set_Rpl_Semi_Sync_Slave_OFF  => "SET GLOBAL rpl_semi_sync_slave_enabled = OFF";
+use constant Set_Rpl_Semi_Sync_Slave_On   => "SET GLOBAL rpl_semi_sync_slave_enabled = ON";
+use constant Get_Event_Scheduler_SQL      => 
+"SELECT EVENT_NAME, EVENT_SCHEMA, STATUS FROM information_schema.EVENTS";
+use constant Set_Event_Scheduler_ON       => "SET GLOBAL event_scheduler = ON";
+use constant Set_Event_Scheduler_OFF      => "SET GLOBAL event_scheduler = OFF";
+use constant Enable_Event_Scheduler       => "ALTER EVENT %s ENABLE";
+use constant Disable_Event_Scheduler      => "ALTER EVENT %s DISABLE";
 
 sub new {
   my ($class) = @_;
@@ -313,6 +319,49 @@ sub rpl_semi_new_master_set {
     $self->execute(Set_Rpl_Semi_Sync_Slave_OFF);
     $self->execute(Set_Rpl_Semi_Sync_Master_ON);
     $self->execute(Set_Rpl_Semi_Sync_Master_Timeout);
+  }
+}
+
+sub _get_event_info {
+  my $dbh  = shift;
+  my %events;
+  my $sth = $dbh->selectall_arrayref(Get_Event_Scheduler_SQL);
+  foreach my $k (@$sth) {
+    my ($name, $schema, $status) = @$k;
+    if ($name && $schema) {
+      $events{"$schema.$name"} = $status;
+    }
+  }
+  return %events;
+}
+
+sub set_event_scheduler_on {
+  my $self = shift;
+  my $status = $self->show_variable("event_scheduler") || '';
+  if ($status eq "OFF") {
+    $self->execute(Set_Event_Scheduler_ON);
+    my %events = _get_event_info($self->{dbh});
+    foreach my $k (keys %events) {
+      if ($events{$k} =~ /DISABLED/i) {
+        my $event_sql = sprintf(Enable_Event_Scheduler, $k);
+        $self->execute($event_sql);
+      }
+    }
+  }
+}
+
+sub set_event_scheduler_off {
+  my $self = shift;
+  my $status = $self->show_variable("event_scheduler") || '';
+  if ($status eq "ON") {
+    $self->execute(Set_Event_Scheduler_OFF);
+    my %events = _get_event_info($self->{dbh});
+    foreach my $k (keys %events) {
+      if ($events{$k} =~ /ENABLED/i) {
+        my $event_sql = sprintf(Disable_Event_Scheduler, $k);
+        $self->execute($event_sql);
+      }
+    }
   }
 }
 
