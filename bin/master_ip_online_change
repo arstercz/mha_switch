@@ -117,9 +117,6 @@ sub get_threads_util {
     next if ( defined($user) && $user eq "system user" );
     next if ( defined($user) && $user eq "event_scheduler" );
     next
-      if defined($command)
-      && $command eq "Sleep";
-    next
       if defined($query_time)
       && $query_time < $running_time_threshold + 1;
 
