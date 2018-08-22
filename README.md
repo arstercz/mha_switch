@@ -2,7 +2,11 @@
 
 Switch MySQL replication with custom scripts by use [MHA](https://github.com/yoshinorim/mha4mysql-manager), read more from [blog](https://highdb.com/mha_switch-%E7%BB%93%E5%90%88-proxysql-%E5%92%8C-mha-%E5%88%87%E6%8D%A2-mysql-%E4%B8%BB%E4%BB%8E/).
 
-note: all dependecy Perl modules are the same with `MHA`, and all of the scripts are based on `MHA 0.56` version.
+*note:* 
+
+- all dependecy Perl modules are the same with `MHA`, and all of the scripts are based on `MHA 0.56` version.
+- the `event_scheduler` feature can be used in `MHA 0.58` version, otherwise you must give a big enough value to the `--running_updates_limit` and `--running_seconds_limit` option. read more from [pull-44](https://github.com/yoshinorim/mha4mysql-manager/pull/44) and you can apply this patch into your low version `MHA`.
+
 
 ## Introduction
 
