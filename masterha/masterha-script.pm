@@ -424,11 +424,14 @@ sub _safe_qx {
 
 sub ssh_cmd {
   my ( $self, $cmd ) = @_;
+  $self->{user} ||= 'root';
+  $self->{port} ||= 22; 
   my @cmd = ();
   push @cmd, 'ssh';
-  push @cmd, '-l', $self->{user} if $self->{user};
+  push @cmd, split(/\s/, $self->{option});
+  push @cmd, '-p', $self->{port};
+  push @cmd, '-l', $self->{user};
   push @cmd, $self->{host};
-  push @cmd, '-p', $self->{port} if $self->{port};
   push @cmd, $cmd;
   return @cmd;
 }

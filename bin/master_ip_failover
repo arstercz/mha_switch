@@ -299,6 +299,7 @@ sub main {
     my $iphelper = Extra::MHA::IpHelper->new(
       host => $orig_master_ssh_ip,
       port => $orig_master_ssh_port,
+      user => $ssh_user,
       option => $ssh_options,
     );
     if (!$cfg->{vip} && $cfg->{'proxysql'} ) {
