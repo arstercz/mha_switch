@@ -136,6 +136,7 @@ sub main {
         my $iphelper = Extra::MHA::IpHelper->new(
           host => $orig_master_ssh_ip,
           port => $orig_master_ssh_port,
+          user => $ssh_user,
           option => $ssh_options,
         );
         eval {
@@ -194,6 +195,7 @@ sub main {
         my $iphelper = Extra::MHA::IpHelper->new(
           host => $new_master_ssh_ip,
           port => $new_master_ssh_port,
+          user => $ssh_user,
           option => $ssh_options,
         );
         $iphelper->start_vip( $cfg->{vip},

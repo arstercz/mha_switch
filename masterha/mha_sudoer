@@ -1,0 +1,4 @@
+# sudoer for mha user
+Cmnd_Alias MHA = /sbin/ip, /sbin/arping, /bin/ping
+
+mha	ALL=(root)	NOPASSWD: MHA

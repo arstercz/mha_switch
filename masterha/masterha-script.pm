@@ -376,9 +376,16 @@ use warnings;
 use Carp;
 
 sub new {
-  my ( $class, %host_args ) = @_;
-  croak "missing host to check against" unless $host_args{host};
-  bless \%host_args, __PACKAGE__;
+  my ( $class, %args ) = @_;
+  croak "missing host to check against" unless $args{host};
+  my $self = {};
+  bless $self, $class;
+  $self->{host}  = $args{host};
+  $self->{port}  = $args{port} || 22;
+  $self->{user}  = $args{user} || 'root';
+  $self->{option}= $args{option};
+
+  return $self;
 }
 
 # see perlsec
@@ -425,10 +432,10 @@ sub _safe_qx {
 sub ssh_cmd {
   my ( $self, $cmd ) = @_;
   $self->{user} ||= 'root';
-  $self->{port} ||= 22; 
+  $self->{port} ||= 22;
   my @cmd = ();
   push @cmd, 'ssh';
-  push @cmd, split(/\s/, $self->{option});
+  push @cmd, split(/\s/, $self->{option}) if defined $self->{option};
   push @cmd, '-p', $self->{port};
   push @cmd, '-l', $self->{user};
   push @cmd, $self->{host};
@@ -455,7 +462,8 @@ sub get_run_status {
 
 sub get_ipaddr {
   my ($self) = @_;
-  chomp( my @ipaddr = $self->run_ssh_cmd('/sbin/ip addr') );
+  my $sudo = $self->{user} ne 'root' ? 'sudo' : '';
+  chomp( my @ipaddr = $self->run_ssh_cmd("$sudo /sbin/ip addr") );
   assert_status();
   return \@ipaddr;
 }
@@ -554,7 +562,9 @@ sub stop_vip {
   my ( $self, $vip ) = @_;
   my ( $ip, $bits, $dev ) = $self->check_node_vip($vip)
     or croak "vip $vip is not configured on the node";
-  $self->run_ssh_cmd("/sbin/ip addr del $ip/$bits dev $dev");
+
+  my $sudo = $self->{user} ne 'root' ? 'sudo' : '';
+  $self->run_ssh_cmd("$sudo /sbin/ip addr del $ip/$bits dev $dev");
   assert_status();
   return ( $ip, $bits, $dev );
 }
@@ -567,8 +577,9 @@ sub start_vip {
   $dev ||= $vip[2];  # third component
   croak "vip $vip does not match any device" unless defined $dev;
 
-  $self->run_ssh_cmd( "/sbin/ip addr add $vip dev $dev"
-      . ( $dev =~ /^lo/ ? "" : "; /sbin/arping -U -I $dev -c 3 $vip" ) );
+  my $sudo = $self->{user} ne 'root' ? 'sudo' : '';
+  $self->run_ssh_cmd( "$sudo /sbin/ip addr add $vip dev $dev"
+      . ( $dev =~ /^lo/ ? "" : "; $sudo /sbin/arping -U -I $dev -c 3 $vip" ) );
   assert_status();
 }
 

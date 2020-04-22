@@ -68,6 +68,8 @@ GetOptions(
   'ssh_options=s'            => \$ssh_options,
 );
 
+my $ssh_user = $new_master_ssh_user || $orig_master_ssh_user || 'root';
+
 $orig_master_ssh_ip ||= $orig_master_ssh_host
   || $orig_master_ip
   || $orig_master_host;
@@ -298,7 +300,9 @@ sub main {
         print current_time_us() . " Stopping VIP ..\n";
         my $iphelper = Extra::MHA::IpHelper->new(
           host => $orig_master_ssh_ip,
-          port => $orig_master_ssh_port
+          port => $orig_master_ssh_port,
+          user => $ssh_user,
+          option => $ssh_options,
         );
         $iphelper->stop_vip( $cfg->{vip} );
       }
@@ -358,7 +362,9 @@ sub main {
         print current_time_us() . " Starting VIP on the new master..\n";
         my $iphelper = Extra::MHA::IpHelper->new(
           host => $new_master_ssh_ip,
-          port => $new_master_ssh_port
+          port => $new_master_ssh_port,
+          user => $ssh_user,
+          option => $ssh_options,
         );
         $iphelper->start_vip( $cfg->{vip},
           ( $cfg->{vip_on_loopback} ? ('lo') : () ) );
@@ -477,7 +483,9 @@ sub main {
 
     my $iphelper = Extra::MHA::IpHelper->new(
       host => $orig_master_ssh_ip,
-      port => $orig_master_ssh_port
+      port => $orig_master_ssh_port,
+      user => $ssh_user,
+      option => $ssh_options,
     );
     if ( !$cfg->{vip} && $cfg->{'proxysql'} ) {
       print "use proxysql without vip configured\n";

@@ -17,14 +17,17 @@ mha_switch
 │   ├── init_conf_loads
 │   ├── master_ip_failover
 │   └── master_ip_online_change
+├── LICENSE
 ├── log
 │   └── switch.log
 ├── masterha
 │   ├── app_56.conf
 │   ├── app_default.cnf
 │   ├── masterha-script.cnf
-│   └── masterha-script.pm
+│   ├── masterha-script.pm
+│   └── mha_sudoer
 └── README.md
+
 ```
 
 ### scripts
@@ -41,6 +44,8 @@ block/release mysql user
 proxysql switch
 ```
 read more from [proxysql](https://github.com/sysown/proxysql).
+
+4. `mha_sudoer` should be copy to all of the MySQL Host's `/etc/sudoers.d`, so that `mha_switch` can switch virtual ip address with normal user(default is `mha` user). 
 
 ### configure file
 
