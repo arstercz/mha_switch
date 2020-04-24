@@ -45,7 +45,7 @@ proxysql switch
 ```
 read more from [proxysql](https://github.com/sysown/proxysql).
 
-4. `mha_sudoer` should be copy to all of the MySQL Host's `/etc/sudoers.d`, so that `mha_switch` can switch virtual ip address with normal user(default is `mha` user). 
+4. `mha_sudoer` should be copy to all of the MySQL Host's `/etc/sudoers.d`, so that `mha_switch` can switch virtual ip address with normal user(default is `mha` user). **note:** you must comment the `Defaults    requiretty` so that avoid sudo error `sorry, you must have a tty to run sudo`.
 
 ### configure file
 
